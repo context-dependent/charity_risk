@@ -1,0 +1,8 @@
+model,label,versus,auc_difference,ci_low,ci_high,p_worse,n_boot
+size_only,Size only (log revenue),Trussel logit (ratios + size + sector),-0.021428112008696876,-0.030377832962324804,-0.013650535309392378,1.0,500.0
+tuckman_chang_1991,Tuckman-Chang score (0-4),Trussel logit (ratios + size + sector),-0.22007649220279024,-0.2370745166147371,-0.20574622998947514,1.0,500.0
+greenlee_trussel_2000,Greenlee-Trussel logit (4 TC ratios),Trussel logit (ratios + size + sector),-0.06346714619110372,-0.07239037165134628,-0.05387617180529338,1.0,500.0
+extended_logit,Elastic-net logit (extended),Trussel logit (ratios + size + sector),0.01982363635032991,0.014756353679403878,0.024811610240288395,0.0,500.0
+gradient_boosting,Gradient boosting (extended),Trussel logit (ratios + size + sector),0.03475350354400719,0.029413503763266517,0.041335996764109866,0.0,500.0
+deep_neural_net,Deep neural net (extended),Trussel logit (ratios + size + sector),0.021274672304951503,0.01368956273159446,0.02935936916819816,0.0,500.0
+ensemble_blend,Model-average ensemble (logit + GBM + net),Trussel logit (ratios + size + sector),0.03713640184123401,0.03164560813027183,0.0431104380220888,0.0,500.0

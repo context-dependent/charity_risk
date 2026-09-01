@@ -1,0 +1,41 @@
+[project]
+authors = [{name = "context-dependent", email = "tomas.k.mcmanus@gmail.com"}]
+dependencies = ["jupyter>=1.1.1,<2", "ipykernel>=7.3.0,<8", "pymc>=6.2.0,<7", "arviz>=1.2.0,<2", "matplotlib>=3.11.1,<4", "numpy>=2.4.6,<3", "pandas>=3.0.5,<4", "scikit-learn>=1.9.0,<2"]
+name = "charity_risk"
+requires-python = ">= 3.11"
+version = "0.1.0"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tool.pixi.pypi-dependencies]
+charity_risk = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+# Fit, evaluate and write every table and figure to outputs/.
+pipeline = "python -m charity_risk.pipeline"
+# Same, but rebuild the panel and analysis frame from the raw CSVs first (~10 min).
+pipeline-refresh = "python -m charity_risk.pipeline --refresh"
+test = "pytest tests -q"
+notebooks = "jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=3600 notebooks/01-data-and-outcomes.ipynb notebooks/02-features-and-benchmarks.ipynb notebooks/03-model-results.ipynb notebooks/04-schedule-6-deep-dive.ipynb"
+lab = "jupyter lab"
+# Build the published site (README + notebooks, using their checked-in
+# outputs) into _build/html. Matches the version pinned for CI in
+# .github/workflows/deploy-pages.yml.
+docs = "jupyter-book build --html"
+
+[tool.pixi.dependencies]
+openpyxl = ">=3.1.5,<4"
+pyarrow = ">=25.0.0,<26"
+statsmodels = ">=0.14"
+numpy = "<2.5"
+libblas = { version = "*", build = "*openblas" }
+pytest = ">=9.1.1,<10"
+pypdf = ">=6.15.0,<7"
+jupyter-book = ">=2.1.6,<3"
+nodejs = "22.*"

@@ -1,0 +1,27 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# derived caches: rebuilt by `pixi run pipeline --refresh`
+data/
+data-raw/
+
+# outputs/ is intentionally tracked - it is the documented result set
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.claude/
+
+# copyrighted journal PDFs (Tuckman & Chang 1991, Greenlee & Trussel 2000,
+# Trussel 2002, Burde 2016, Alam/Gao/Jones 2021) - cited in notebooks/refs.bib
+# but not ours to redistribute publicly.
+reading/*.pdf
+
+# names ~500 real charities by legal name and business number as
+# highest-risk for deregistration; every other output/ artefact is aggregate
+# or anonymised. Regenerate locally with `pixi run pipeline`.
+outputs/tables/watchlist_2022.csv
+
+# MyST / Jupyter Book build output
+_build
