@@ -27,7 +27,7 @@ Two things about the exit label deserve to be stated plainly rather than buried:
   "predicts deregistration", not "predicts insolvency".
 * **Right-censoring.**  A charity absent from year *t+1* may simply be filing
   late relative to the extract date.  The panel does contain gap-then-return
-  patterns (about 0.5% of BNs).  We therefore require
+  patterns (about 0.8% of BNs).  We therefore require
   :data:`~charity_risk.config.MIN_LOOKAHEAD_YEARS` observed years after *t*
   before we are willing to call an absence permanent, which restricts labelled
   years to 2019-2021 in a 2019-2023 window.
@@ -68,7 +68,7 @@ def add_exit_labels(panel: pd.DataFrame, years: tuple[int, ...] = YEARS,
     ``exit_provisional``
         The same rule without the lookahead requirement.  Useful for describing
         the final year of the window, but too noisy to model on: roughly one in
-        eight single-year absences is followed by a return.
+        seven single-year absences is followed by a return.
     ``years_observed_after``
         How many later years of the window exist, i.e. the lookahead depth.
     ``survives_window``

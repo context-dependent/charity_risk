@@ -56,8 +56,8 @@ PANEL_END: int = YEARS[-1]
 
 #: A permanent-exit label is only trusted when at least this many later years
 #: are observed.  Gap-then-return patterns exist in the panel (see
-#: ``notebooks/01-data-profile``), so a single lookahead year is too noisy to
-#: treat as failure.
+#: ``notebooks/01-data-and-outcomes``), so a single lookahead year is too noisy
+#: to treat as failure.
 MIN_LOOKAHEAD_YEARS: int = 2
 
 #: Temporal design.  Features for year *t* use levels at *t* and growth from
