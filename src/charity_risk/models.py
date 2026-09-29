@@ -41,7 +41,8 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
 from .benchmarks import GREENLEE_TRUSSEL_2000, TRUSSEL_2002
 from .config import RANDOM_STATE
-from .features import CATEGORICAL, FEATURE_GROUPS, assert_no_leakage, feature_columns
+from .features import CATEGORICAL, FEATURE_GROUPS, HS_RATIOS, assert_no_leakage, feature_columns
+from .risk_index import MultiDimensionalRiskIndex
 
 __all__ = [
     "Winsorizer",
@@ -432,6 +433,24 @@ SPECIFICATIONS: dict[str, ModelSpec] = {
         factory=lambda numeric, categorical: None,  # handled by evaluate.fit_spec
         family="rule",
         citation="Tuckman & Chang (1991)",
+    ),
+    "hs_index_flags": ModelSpec(
+        name="hs_index_flags",
+        label="HS risk index (quintile flags)",
+        numeric=HS_RATIOS,
+        categorical=(),
+        factory=lambda numeric, categorical: MultiDimensionalRiskIndex(method="flags"),
+        family="index",
+        citation="After Tuckman & Chang (1991); this project",
+    ),
+    "hs_index": ModelSpec(
+        name="hs_index",
+        label="HS risk index (percentile)",
+        numeric=HS_RATIOS,
+        categorical=(),
+        factory=lambda numeric, categorical: MultiDimensionalRiskIndex(method="percentile"),
+        family="index",
+        citation="After Tuckman & Chang (1991); this project",
     ),
     "greenlee_trussel_2000": ModelSpec(
         name="greenlee_trussel_2000",

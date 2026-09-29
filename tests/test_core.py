@@ -21,6 +21,7 @@ from charity_risk.benchmarks import TC_RISK_DIRECTION, TuckmanChangScore
 from charity_risk.dataset import schedule_6_split
 from charity_risk.features import (
     FORBIDDEN_FEATURES,
+    HS_RATIOS,
     SCHEDULE_6,
     add_schedule_6,
     assert_no_leakage,
@@ -40,6 +41,11 @@ from charity_risk.models import (
 )
 from charity_risk.outcomes import add_exit_labels, labelled_years
 from charity_risk.panel import apply_tier_missingness, dedupe_returns
+from charity_risk.risk_index import (
+    HS_DIMENSIONS,
+    HS_RISK_DIRECTION,
+    MultiDimensionalRiskIndex,
+)
 
 
 # --------------------------------------------------------------- parsing
@@ -372,3 +378,92 @@ def test_tuckman_chang_does_not_count_missing_ratios_as_flags():
         {ratio: [-1.0, 0.0, 1.0] for ratio in TC_RISK_DIRECTION}))
     assert scorer.n_ratios_scored(frame).tolist() == [4, 0]
     assert scorer.score(frame)[1] == 0.0
+
+
+# --------------------------------------------------------------- risk index
+def _hs_frame(n: int = 500, seed: int = 0) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame({ratio: rng.normal(size=n) for ratio in HS_RISK_DIRECTION})
+
+
+def test_hs_dimensions_partition_the_hs_ratios():
+    members = [r for ratios in HS_DIMENSIONS.values() for r in ratios]
+    assert sorted(members) == sorted(HS_RATIOS)
+    assert len(members) == len(set(members))
+
+
+def test_risk_index_percentile_is_oriented_so_one_is_riskiest():
+    frame = _hs_frame()
+    index = MultiDimensionalRiskIndex().fit(frame)
+    scores = index.ratio_scores(frame)
+    for ratio, direction in HS_RISK_DIRECTION.items():
+        riskiest = frame[ratio].idxmin() if direction < 0 else frame[ratio].idxmax()
+        assert scores.loc[riskiest, ratio] > 0.99
+        assert scores[ratio].between(0, 1).all()
+
+
+def test_risk_index_flags_agree_with_tuckman_chang_on_shared_ratios():
+    frame = _hs_frame()
+    index = MultiDimensionalRiskIndex(method="flags").fit(frame)
+    scorer = TuckmanChangScore().fit(frame)
+    flags = index.ratio_scores(frame)
+    for ratio in TC_RISK_DIRECTION:
+        np.testing.assert_array_equal(flags[ratio], scorer.flags(frame)[f"tc_flag_{ratio}"])
+
+
+def test_risk_index_weights_dimensions_not_ratios():
+    """Profitability has four ratios and efficiency one; each dimension counts once."""
+    reference = _hs_frame()
+    index = MultiDimensionalRiskIndex(method="flags").fit(reference)
+    row = pd.DataFrame({ratio: [0.0] for ratio in HS_RISK_DIRECTION})
+    for ratio in HS_DIMENSIONS["profitability"]:
+        row[ratio] = -10.0                      # every profitability ratio flagged
+    dims = index.dimension_scores(row).iloc[0]
+    assert dims["profitability"] == 1.0
+    assert index.index(row).iloc[0] == pytest.approx(1.0 / len(HS_DIMENSIONS))
+
+
+def test_risk_index_skips_missing_dimensions_instead_of_scoring_them_safe():
+    reference = _hs_frame()
+    index = MultiDimensionalRiskIndex().fit(reference)
+    row = pd.DataFrame({ratio: [-10.0] for ratio in HS_RISK_DIRECTION})
+    row["revenue_growth_volatility"] = 10.0
+    row["revenue_concentration"] = 10.0
+    full = index.index(row).iloc[0]
+    row[list(HS_DIMENSIONS["liquidity"])] = np.nan   # a Section D filer
+    assert index.n_dimensions_scored(row).iloc[0] == len(HS_DIMENSIONS) - 1
+    assert index.index(row).iloc[0] == pytest.approx(full, abs=0.01)
+    assert np.isnan(index.dimension_flags(row).iloc[0]["liquidity"])
+
+
+def test_risk_index_leaves_ratios_unseen_in_training_unscored():
+    reference = _hs_frame()
+    reference["revenue_growth_volatility"] = np.nan  # the 2020 training year
+    index = MultiDimensionalRiskIndex().fit(reference)
+    assert index.unscored_ratios_ == ["revenue_growth_volatility"]
+    scores = index.ratio_scores(_hs_frame(seed=1))
+    assert scores["revenue_growth_volatility"].isna().all()
+    assert scores["revenue_concentration"].notna().all()
+
+
+def test_risk_index_probability_is_monotone_in_the_index():
+    frame = _hs_frame(n=2000)
+    index = MultiDimensionalRiskIndex().fit(frame)
+    raw = index.index(frame)
+    y = (np.random.default_rng(1).random(len(frame)) < 0.05 + 0.3 * raw).astype(float)
+    fitted = index.fit(frame, y)
+    risk = fitted.predict_proba(frame)[:, 1]
+    order = np.argsort(raw.to_numpy())
+    assert (np.diff(risk[order]) >= -1e-12).all()
+
+
+def test_risk_index_specifications_fit_through_the_registry():
+    from charity_risk.evaluate import fit_spec
+
+    frame = _hs_frame(n=1000)
+    frame["exit_next_year"] = (np.random.default_rng(2).random(len(frame)) < 0.1).astype(float)
+    for name in ("hs_index", "hs_index_flags"):
+        model = fit_spec(SPECIFICATIONS[name], frame, "exit_next_year")
+        risk = model.risk(frame)
+        assert risk.shape == (len(frame),)
+        assert np.isfinite(risk).all()

@@ -243,6 +243,21 @@ def run(refresh: bool = False, skip_vulnerability: bool = False) -> dict[str, Ta
     plots.save_figure(fig, "exit_tuckman_chang_response")
     plt.close(fig)
 
+    # The same question for the multi-dimensional index: its dimensions-at-risk
+    # count, and the realised exit rate in each of the index's deciles.
+    hs_model = tasks["exit"].fitted["hs_index"].estimator
+    hs_scored = tasks["exit"].test.assign(
+        hs_dimensions_at_risk=hs_model.n_dimensions_at_risk(tasks["exit"].test),
+    )
+    _write(hs_scored.groupby("hs_dimensions_at_risk", observed=True)["exit_next_year"]
+           .agg(["size", "mean"]).rename(columns={"size": "n", "mean": "exit_rate"}),
+           "exit_hs_index_response")
+    fig, ax = plt.subplots(figsize=(6.6, 4.2))
+    plots.plot_score_response(hs_scored, "hs_dimensions_at_risk", "exit_next_year", ax=ax,
+                             title="HS index: dimensions at risk against realised exit")
+    plots.save_figure(fig, "exit_hs_index_response")
+    plt.close(fig)
+
     run_watchlist(tasks["exit"], frame)
     del frame, train, test
 

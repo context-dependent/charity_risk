@@ -25,6 +25,7 @@ project:
         - file: notebooks/03-model-results.ipynb
         - file: notebooks/04-schedule-6-deep-dive.ipynb
         - file: notebooks/05-implementation-and-extensions.ipynb
+        - file: notebooks/06-multidimensional-risk-index.ipynb
     - file: references.md
 
 site:

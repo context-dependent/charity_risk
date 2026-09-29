@@ -108,6 +108,7 @@ Read in order.
 | [`03-model-results`](notebooks/03-model-results.ipynb) | The out-of-time comparison, a deep network, a forecast-average ensemble, a Bayesian alternative, a watchlist, and the limits |
 | [`04-schedule-6-deep-dive`](notebooks/04-schedule-6-deep-dive.ipynb) | Section D filings excluded; what the detailed return's 50 extra features actually buy |
 | [`05-implementation-and-extensions`](notebooks/05-implementation-and-extensions.ipynb) | Why this is useful, two ways to deploy it, and what better data would buy — no cohort is fitted here |
+| [`06-multidimensional-risk-index`](notebooks/06-multidimensional-risk-index.ipynb) | A Tuckman-Chang-style index over twelve ratios in five dimensions, scored against the rule and the logits |
 
 ## Package layout
 
@@ -123,6 +124,7 @@ Read in order.
 | `features` | Ratios, from the Tuckman-Chang four outwards, in named groups (including the Schedule-6-only group) |
 | `dataset` | The modelling frame and the train / test / score / Schedule-6 splits |
 | `benchmarks` | The classical models, reproduced, plus statsmodels coefficient tables |
+| `risk_index` | A multi-dimensional, Tuckman-Chang-style index over the HS ratios |
 | `models` | Preprocessing pipelines and the specification registry |
 | `evaluate` | Fitting, metrics, paired bootstrap, permutation importance |
 | `hierarchical` | A partially-pooled Bayesian logit (PyMC) |
