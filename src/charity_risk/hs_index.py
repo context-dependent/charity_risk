@@ -1,17 +1,9 @@
-"""A multi-dimensional, Tuckman-Chang-style risk index over the HS ratios.
+"""The HS risk index: five financial dimensions scored from the HS ratios.
 
-Tuckman and Chang (1991) score vulnerability by flagging each of four ratios
-that falls in the sector's risky quintile and counting the flags.  That rule has
-two weaknesses on this data, both documented in ``02-features-and-benchmarks``:
-it counts *ratios*, so four measures of overlapping things vote four times; and
-it *discretises*, so 79% of the register falls into two buckets with the same
-exit rate.
-
-:class:`MultiDimensionalRiskIndex` keeps the method's shape — fixed training-
-sample reference points, a direction for each ratio, no fitted weights — and
-changes both of those things.  The twelve ratios in
-:data:`charity_risk.features.HS_RATIOS` are grouped into five financial
-dimensions, following the hierarchy in
+The HS index is a separate index from Tuckman and Chang (1991), built on its own
+ratio set.  It scores an organisation on five financial dimensions — solvency,
+liquidity, profitability, efficiency and revenue — using the twelve ratios in
+:data:`charity_risk.features.HS_RATIOS`, grouped as in
 :func:`charity_risk.features.add_hs_ratios`:
 
 =================  ===================================================  ======
@@ -27,7 +19,7 @@ Revenue            revenue growth volatility, revenue concentration     high
 
 Each ratio is scored against the training sample, averaged within its
 dimension, and the dimensions are averaged into the index, so every dimension
-carries equal weight however many ratios describe it.
+carries equal weight however many ratios describe it.  No weight is fitted.
 
 The per-ratio score comes in two forms (``method``):
 
@@ -35,16 +27,20 @@ The per-ratio score comes in two forms (``method``):
     The ratio's position in the training distribution, oriented so that 1 is
     the riskiest end.  Nothing is thrown away, so the index is continuous.
 ``"flags"``
-    The Tuckman-Chang quintile flag: 1 inside the risky tail, 0 outside.  The
-    index is then the (dimension-weighted) share of flags, and reproduces the
-    original rule's coarseness on purpose, as a like-for-like comparison.
+    1 inside the ratio's risky tail (by default the riskiest fifth of the
+    training sample), 0 outside.  The index is then the dimension-weighted
+    share of flags.
 
-Two conventions are inherited from :class:`charity_risk.benchmarks.TuckmanChangScore`.
+The Tuckman-Chang score in :mod:`charity_risk.benchmarks` is a different index —
+four ratios, one flag each, no dimensions — and is used in this project only as
+a benchmark to compare the HS index against.  The two share four ratios and, on
+those four, the same risky tails.
+
 Missing ratios are not scored — a missing value is never a flag — and a
 dimension with no scored ratio is left out of the average rather than counted as
 zero; otherwise the index would partly measure filing tier, since the two
-liquidity ratios exist only for Schedule 6 filers.  And the administrative cost
-ratio's risky tail is the *bottom*, as Tuckman and Chang specified, although
+liquidity ratios exist only for Schedule 6 filers.  The administrative cost
+ratio's risky tail is the *bottom* (spending with no slack to cut), although
 ``02-features-and-benchmarks`` finds it runs the other way on exit; pass
 ``directions`` to override any ratio's orientation.
 """
@@ -64,7 +60,7 @@ from .features import HS_RATIOS
 __all__ = [
     "HS_DIMENSIONS",
     "HS_RISK_DIRECTION",
-    "MultiDimensionalRiskIndex",
+    "HSRiskIndex",
 ]
 
 log = logging.getLogger(__name__)
@@ -80,8 +76,8 @@ HS_DIMENSIONS: dict[str, tuple[str, ...]] = {
 }
 
 #: Which tail of each ratio is the risky one: ``-1`` the bottom, ``+1`` the top.
-#: Matches :data:`charity_risk.benchmarks.TC_RISK_DIRECTION` on the four ratios
-#: the two share.
+#: On the four ratios it shares with the Tuckman-Chang benchmark, the direction
+#: is the same as :data:`charity_risk.benchmarks.TC_RISK_DIRECTION`.
 HS_RISK_DIRECTION: dict[str, int] = {
     "equity_balance": -1,
     "net_assets_to_assets": -1,
@@ -101,14 +97,14 @@ assert {r for ratios in HS_DIMENSIONS.values() for r in ratios} == set(HS_RATIOS
 assert set(HS_RISK_DIRECTION) == set(HS_RATIOS)
 
 
-class MultiDimensionalRiskIndex(BaseEstimator, ClassifierMixin):
+class HSRiskIndex(BaseEstimator, ClassifierMixin):
     """Equal-weight index of per-dimension ratio risk.
 
     .. math::
 
         s_{k,i} = \\begin{cases}
             \\hat F_k(d_k\\, r_{k,i}) & \\text{percentile} \\\\
-            \\mathbb{1}\\!\\left[r_{k,i} \\text{ in the risky quintile of ratio } k\\right]
+            \\mathbb{1}\\!\\left[r_{k,i} \\text{ in the risky tail of ratio } k\\right]
                                     & \\text{flags}
         \\end{cases}
         \\qquad
@@ -134,8 +130,7 @@ class MultiDimensionalRiskIndex(BaseEstimator, ClassifierMixin):
     method:
         ``"percentile"`` or ``"flags"``; see the module docstring.
     quantile:
-        Tail mass flagged per ratio when ``method="flags"``.  ``0.2``
-        reproduces the original quintile rule.  Under the percentile method it
+        Tail mass flagged per ratio when ``method="flags"``.  Under the percentile method it
         only sets the default threshold of :meth:`dimension_flags`.
     dimensions:
         Dimension -> ratios.  Defaults to :data:`HS_DIMENSIONS`.
@@ -170,7 +165,7 @@ class MultiDimensionalRiskIndex(BaseEstimator, ClassifierMixin):
         directions = {**HS_RISK_DIRECTION, **(self.directions or {})}
         return dimensions, directions
 
-    def fit(self, X: pd.DataFrame, y=None) -> "MultiDimensionalRiskIndex":
+    def fit(self, X: pd.DataFrame, y=None) -> "HSRiskIndex":
         if self.method not in ("percentile", "flags"):
             raise ValueError(f"method must be 'percentile' or 'flags', not {self.method!r}")
         self.dimensions_, self.directions_ = self._resolved()
@@ -239,7 +234,7 @@ class MultiDimensionalRiskIndex(BaseEstimator, ClassifierMixin):
 
     def index(self, X: pd.DataFrame) -> pd.Series:
         """The index in ``[0, 1]``: the mean of the observed dimension scores."""
-        return self.dimension_scores(X).mean(axis=1, skipna=True).rename("risk_index")
+        return self.dimension_scores(X).mean(axis=1, skipna=True).rename("hs_index")
 
     def n_dimensions_scored(self, X: pd.DataFrame) -> pd.Series:
         return self.dimension_scores(X).notna().sum(axis=1)
@@ -258,7 +253,7 @@ class MultiDimensionalRiskIndex(BaseEstimator, ClassifierMixin):
         return (scores >= threshold).astype("float64").where(scores.notna())
 
     def n_dimensions_at_risk(self, X: pd.DataFrame, threshold: float | None = None) -> pd.Series:
-        """The Tuckman-Chang-style count: how many of the five dimensions are at risk."""
+        """How many of the five dimensions are at risk (0-5)."""
         return self.dimension_flags(X, threshold).sum(axis=1, min_count=1).fillna(0.0)
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:

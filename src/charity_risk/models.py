@@ -42,7 +42,7 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 from .benchmarks import GREENLEE_TRUSSEL_2000, TRUSSEL_2002
 from .config import RANDOM_STATE
 from .features import CATEGORICAL, FEATURE_GROUPS, HS_RATIOS, assert_no_leakage, feature_columns
-from .risk_index import MultiDimensionalRiskIndex
+from .hs_index import HSRiskIndex
 
 __all__ = [
     "Winsorizer",
@@ -436,21 +436,21 @@ SPECIFICATIONS: dict[str, ModelSpec] = {
     ),
     "hs_index_flags": ModelSpec(
         name="hs_index_flags",
-        label="HS risk index (quintile flags)",
+        label="HS index (flags)",
         numeric=HS_RATIOS,
         categorical=(),
-        factory=lambda numeric, categorical: MultiDimensionalRiskIndex(method="flags"),
+        factory=lambda numeric, categorical: HSRiskIndex(method="flags"),
         family="index",
-        citation="After Tuckman & Chang (1991); this project",
+        citation="HS index; this project",
     ),
     "hs_index": ModelSpec(
         name="hs_index",
-        label="HS risk index (percentile)",
+        label="HS index (percentile)",
         numeric=HS_RATIOS,
         categorical=(),
-        factory=lambda numeric, categorical: MultiDimensionalRiskIndex(method="percentile"),
+        factory=lambda numeric, categorical: HSRiskIndex(method="percentile"),
         family="index",
-        citation="After Tuckman & Chang (1991); this project",
+        citation="HS index; this project",
     ),
     "greenlee_trussel_2000": ModelSpec(
         name="greenlee_trussel_2000",

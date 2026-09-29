@@ -41,10 +41,10 @@ from charity_risk.models import (
 )
 from charity_risk.outcomes import add_exit_labels, labelled_years
 from charity_risk.panel import apply_tier_missingness, dedupe_returns
-from charity_risk.risk_index import (
+from charity_risk.hs_index import (
     HS_DIMENSIONS,
     HS_RISK_DIRECTION,
-    MultiDimensionalRiskIndex,
+    HSRiskIndex,
 )
 
 
@@ -392,9 +392,9 @@ def test_hs_dimensions_partition_the_hs_ratios():
     assert len(members) == len(set(members))
 
 
-def test_risk_index_percentile_is_oriented_so_one_is_riskiest():
+def test_hs_index_percentile_is_oriented_so_one_is_riskiest():
     frame = _hs_frame()
-    index = MultiDimensionalRiskIndex().fit(frame)
+    index = HSRiskIndex().fit(frame)
     scores = index.ratio_scores(frame)
     for ratio, direction in HS_RISK_DIRECTION.items():
         riskiest = frame[ratio].idxmin() if direction < 0 else frame[ratio].idxmax()
@@ -402,19 +402,19 @@ def test_risk_index_percentile_is_oriented_so_one_is_riskiest():
         assert scores[ratio].between(0, 1).all()
 
 
-def test_risk_index_flags_agree_with_tuckman_chang_on_shared_ratios():
+def test_hs_index_flags_match_the_tuckman_chang_benchmark_on_shared_ratios():
     frame = _hs_frame()
-    index = MultiDimensionalRiskIndex(method="flags").fit(frame)
+    index = HSRiskIndex(method="flags").fit(frame)
     scorer = TuckmanChangScore().fit(frame)
     flags = index.ratio_scores(frame)
     for ratio in TC_RISK_DIRECTION:
         np.testing.assert_array_equal(flags[ratio], scorer.flags(frame)[f"tc_flag_{ratio}"])
 
 
-def test_risk_index_weights_dimensions_not_ratios():
+def test_hs_index_weights_dimensions_not_ratios():
     """Profitability has four ratios and efficiency one; each dimension counts once."""
     reference = _hs_frame()
-    index = MultiDimensionalRiskIndex(method="flags").fit(reference)
+    index = HSRiskIndex(method="flags").fit(reference)
     row = pd.DataFrame({ratio: [0.0] for ratio in HS_RISK_DIRECTION})
     for ratio in HS_DIMENSIONS["profitability"]:
         row[ratio] = -10.0                      # every profitability ratio flagged
@@ -423,9 +423,9 @@ def test_risk_index_weights_dimensions_not_ratios():
     assert index.index(row).iloc[0] == pytest.approx(1.0 / len(HS_DIMENSIONS))
 
 
-def test_risk_index_skips_missing_dimensions_instead_of_scoring_them_safe():
+def test_hs_index_skips_missing_dimensions_instead_of_scoring_them_safe():
     reference = _hs_frame()
-    index = MultiDimensionalRiskIndex().fit(reference)
+    index = HSRiskIndex().fit(reference)
     row = pd.DataFrame({ratio: [-10.0] for ratio in HS_RISK_DIRECTION})
     row["revenue_growth_volatility"] = 10.0
     row["revenue_concentration"] = 10.0
@@ -436,19 +436,19 @@ def test_risk_index_skips_missing_dimensions_instead_of_scoring_them_safe():
     assert np.isnan(index.dimension_flags(row).iloc[0]["liquidity"])
 
 
-def test_risk_index_leaves_ratios_unseen_in_training_unscored():
+def test_hs_index_leaves_ratios_unseen_in_training_unscored():
     reference = _hs_frame()
     reference["revenue_growth_volatility"] = np.nan  # the 2020 training year
-    index = MultiDimensionalRiskIndex().fit(reference)
+    index = HSRiskIndex().fit(reference)
     assert index.unscored_ratios_ == ["revenue_growth_volatility"]
     scores = index.ratio_scores(_hs_frame(seed=1))
     assert scores["revenue_growth_volatility"].isna().all()
     assert scores["revenue_concentration"].notna().all()
 
 
-def test_risk_index_probability_is_monotone_in_the_index():
+def test_hs_index_probability_is_monotone_in_the_index():
     frame = _hs_frame(n=2000)
-    index = MultiDimensionalRiskIndex().fit(frame)
+    index = HSRiskIndex().fit(frame)
     raw = index.index(frame)
     y = (np.random.default_rng(1).random(len(frame)) < 0.05 + 0.3 * raw).astype(float)
     fitted = index.fit(frame, y)
@@ -457,7 +457,7 @@ def test_risk_index_probability_is_monotone_in_the_index():
     assert (np.diff(risk[order]) >= -1e-12).all()
 
 
-def test_risk_index_specifications_fit_through_the_registry():
+def test_hs_index_specifications_fit_through_the_registry():
     from charity_risk.evaluate import fit_spec
 
     frame = _hs_frame(n=1000)
