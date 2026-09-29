@@ -123,6 +123,21 @@ TUCKMAN_CHANG: tuple[str, ...] = (
     "operating_margin",
 )
 
+HS_RATIOS: tuple[str, ...] = (
+    "equity_balance", 
+    "net_assets_to_assets", 
+    "equity_ratio", 
+    "liquidity_ratio", 
+    "working_capital_months", 
+    "return_on_assets", 
+    "net_revenue", 
+    "operating_margin", 
+    "operating_markup", 
+    "admin_cost_ratio", 
+    "revenue_growth_volatility", 
+    "revenue_concentration"
+)
+
 TRUSSEL_RATIOS: tuple[str, ...] = (
     "revenue_concentration",
     "surplus_margin",
@@ -273,6 +288,7 @@ FEATURE_GROUPS: dict[str, tuple[str, ...]] = {
     "filing": FILING,
     "categorical": CATEGORICAL,
     "schedule_6": SCHEDULE_6,
+    "hs_ratios": HS_RATIOS
 }
 
 #: Panel bookkeeping that encodes the future.  Never a feature.
@@ -320,7 +336,7 @@ def _log1p_signed(series: pd.Series) -> pd.Series:
     sign would misrepresent them; a signed log keeps the ordering monotone.
     """
     values = pd.to_numeric(series, errors="coerce").astype("float64")
-    return np.sign(values) * np.log1p(values.abs())
+    return pd.Series(np.sign(values) * np.log1p(values.abs()))
 
 
 def add_tuckman_chang(panel: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
@@ -495,14 +511,18 @@ def add_schedule_6(panel: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     panel["other_liabilities_share"] = safe_ratio(panel["4330"], liabilities)
 
     # --- working capital and debt service --------------------------------
-    current_assets = panel["4100"] + panel["4110"] + panel["4120"] + panel["4150"]
-    current_liabilities = panel["4300"] + panel["4310"] + panel["4320"]
+    current_assets = panel["4100"] + panel["4110"] + panel["4120"] + panel["4150"] + panel["4170"]
+    current_liabilities = panel["4300"] + panel["4310"] + panel["4320"] + panel["4330"]
+    panel["current_assets"] = current_assets
+    panel["current_liabilities"] = current_liabilities
+    panel["working_capital"] = current_assets - current_liabilities
     panel["current_ratio"] = safe_ratio(current_assets, current_liabilities)
     panel["working_capital_months"] = 12.0 * safe_ratio(
-        panel["4100"] + panel["4110"] + panel["4120"] - current_liabilities,
+        panel["working_capital"],
         panel["total_expenditures"],
     )
     interest = panel["4820"]
+    panel["interest"] = interest
     panel["interest_coverage"] = safe_ratio(
         revenue - panel["total_expenditures"] + interest, interest
     )
@@ -590,6 +610,7 @@ def add_dynamics(panel: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     expanding (never rolling-forward) standard deviation, so a year-*t* value
     uses only growth rates realised up to *t*.
     """
+    panel = panel.copy() if copy else panel
     panel = panel.sort_values(["bn", "year"], kind="mergesort")
     grouped = panel.groupby("bn", observed=True, sort=False)
 
@@ -662,6 +683,39 @@ def add_structure(panel: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     panel["n_returns_in_year"] = panel["n_returns_in_year"].astype("float64")
     return panel
 
+def add_hs_ratios(panel: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
+    """
+    Add ratios from HS index concept.
+    Some already added to the panel. 
+    Full set of hs features is defined as global HS_RATIOS 
+    1 Accounting Constructs
+      1.1 Solvency Ratios
+          1.1.1 net assets / revenue is panel["equity_balance"]
+          1.1.2 net assets / total assets is panel["net_assets_to_assets"]
+          1.1.3 net assets / total liabilities is panel["equity_ratio"] = panel["net_assets"] / panel["total_liabilities"]
+      1.2 Liquidity
+          1.2.1 Working capital / total assets is panel["liquidity_ratio"] = panel["working_capital"] / panel["total_assets"]
+          1.2.2 12 x Unrestricted Net Assets / Total Expenses is panel["working_capital_months"]
+      1.3 Profitability
+          1.3.1 ROA (return on assets) is panel["return_on_assets"] = panel["net_revenue"] / panel["total_assets"]
+          1.3.2 surplus is panel["net_revenue"] = panel["total_revenue"] - panel["total_expenditures"]
+          1.3.3 margin ratio is panel["operating_margin"]
+          1.3.4 markup is panel["operating_markup"] = panel["net_revenue"] / panel["total_expenditures"]
+    2 Efficiency
+      2.1 ACR (administrative cost ratio) is panel["admin_cost_ratio"]
+    3 Revenue
+      3.1 Revenue volatility is panel["revenue_growth_volatility"] = sd(revenue_growth[t-3:t-1])
+      3.2 Funding source concentration is panel["revenue_concentration"] = herfindahl(panel[revenue_cols])
+    """
+    
+    panel = panel.copy() if copy else panel
+    panel["equity_ratio"] = safe_ratio(panel["net_assets"], panel["total_liabilities"]) 
+    panel["liquidity_ratio"] = safe_ratio(panel["working_capital"], panel["total_assets"])
+    panel["net_revenue"] = panel["total_revenue"] - panel["total_expenditures"]
+    panel["return_on_assets"] = safe_ratio(panel["net_revenue"], panel["total_assets"])
+    panel["operating_markup"] = safe_ratio(panel["net_revenue"], panel["total_expenditures"])
+    return panel
+
 
 def build_features(panel: pd.DataFrame, drop_line_codes: bool = True) -> pd.DataFrame:
     """Run the full feature pipeline in dependency order.
@@ -688,6 +742,7 @@ def build_features(panel: pd.DataFrame, drop_line_codes: bool = True) -> pd.Data
         panel = panel.drop(columns=[c for c in FIELD_LABELS if c in panel.columns])
     panel = add_structure(panel, copy=False)
     panel = add_dynamics(panel, copy=False)
+    panel = add_hs_ratios(panel, copy=False)
     return panel
 
 
