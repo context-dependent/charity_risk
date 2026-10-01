@@ -85,6 +85,16 @@ cache:
 pixi run pipeline
 ```
 
+The T3010 extract stays out of the repository, so the published site is built
+from outputs rendered locally and committed. To refresh it:
+
+```bash
+pixi run render        # pipeline, then execute the notebooks
+git add outputs notebooks && git commit -m "Re-render outputs" && git push
+```
+
+`pixi run docs-serve` previews the site locally before you push.
+
 In a notebook or script:
 
 ```python
