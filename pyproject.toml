@@ -24,11 +24,17 @@ pipeline = "python -m charity_risk.pipeline"
 pipeline-refresh = "python -m charity_risk.pipeline --refresh"
 test = "pytest tests -q"
 notebooks = "jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=3600 notebooks/01-data-and-outcomes.ipynb notebooks/02-features-and-benchmarks.ipynb notebooks/03-model-results.ipynb notebooks/04-schedule-6-deep-dive.ipynb notebooks/06-hs-risk-index.ipynb"
+# Everything the published site shows, in dependency order: the pipeline
+# writes outputs/, then the notebooks read it.  Commit both and push; CI
+# builds the site from the committed outputs.
+render = { depends-on = ["pipeline", "notebooks"] }
 lab = "jupyter lab"
 # Build the published site (README + notebooks, using their checked-in
 # outputs) into _build/html. Matches the version pinned for CI in
 # .github/workflows/ci.yml.
 docs = "jupyter-book build --html"
+# Serve the site locally with live reload while editing prose.
+docs-serve = "jupyter-book start"
 
 [tool.pixi.dependencies]
 openpyxl = ">=3.1.5,<4"
