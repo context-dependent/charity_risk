@@ -14,6 +14,7 @@ The package is layered; each module depends only on the ones above it.
                                  plus the detailed-return (Schedule 6) group
 :mod:`~charity_risk.dataset`     the modelling frame and its splits
 :mod:`~charity_risk.benchmarks`  the classical models, reproduced
+:mod:`~charity_risk.hs_index`    the HS risk index: five dimensions from the HS ratios
 :mod:`~charity_risk.models`      pipelines and the specification registry
 :mod:`~charity_risk.evaluate`    fitting, metrics, and paired comparison
 :mod:`~charity_risk.hierarchical` a partially-pooled Bayesian alternative
@@ -61,6 +62,7 @@ __all__ = [
     "evaluate",
     "features",
     "fields",
+    "hs_index",
     "hierarchical",
     "ingest",
     "models",
