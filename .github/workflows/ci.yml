@@ -1,0 +1,83 @@
+# Tests the package and builds the Jupyter Book (MyST) site on every pull
+# request and push to main; deploys the site to GitHub Pages from main only.
+#
+# Nothing here touches the T3010 data, which is not in the repository: the unit
+# tests run on synthetic frames, and the site is built from README.md and the
+# notebooks' already-computed, checked-in outputs (no notebook is re-executed).
+# Re-run `pixi run notebooks` locally and commit the results to change what the
+# site shows.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same PR or branch supersedes an in-flight check run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs exactly what pixi.lock pins for linux-64; fails if the lock
+      # is out of date with pyproject.toml.
+      - uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          pixi-version: v0.81.0
+          locked: true
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Run tests
+        run: pixi run test
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Pinned to the jupyter-book version in pyproject.toml's
+      # [tool.pixi.dependencies], used by `pixi run docs` for local preview.
+      - name: Build the site
+        run: npx --yes jupyter-book@2.1.6 build --html --strict
+        env:
+          BASE_URL: /charity_risk
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _build/html
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [test, site]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Only one deployment at a time; let an in-flight one finish rather than
+    # cancel it, so a page is never left half-published.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/configure-pages@v5
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
