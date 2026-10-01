@@ -16,6 +16,7 @@ the question needs to be read.
 
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Sequence
 
 import numpy as np
@@ -40,6 +41,8 @@ __all__ = [
     "schedule_6_split",
     "scoring_frame",
 ]
+
+log = logging.getLogger(__name__)
 
 _DATASET_PATH = PROCESSED_DIR / "analysis.parquet"
 
@@ -129,6 +132,22 @@ def build_dataset(refresh: bool = False, save: bool = True) -> pd.DataFrame:
     return frame
 
 
+def _cache_is_stale(columns: Sequence[str] | None) -> bool:
+    """Whether the cached analysis frame lacks a column the build now produces."""
+    if not _DATASET_PATH.exists():
+        return False
+    import pyarrow.parquet as pq
+
+    cached = set(pq.read_schema(_DATASET_PATH).names)
+    expected = set(analysis_columns())
+    if columns is not None:
+        expected &= set(columns)
+    missing = sorted(expected - cached)
+    if missing:
+        log.warning("cached analysis frame predates %s; rebuilding it", missing)
+    return bool(missing)
+
+
 def load_dataset(years: Iterable[int] | None = None,
                  columns: Sequence[str] | None = None,
                  refresh: bool = False) -> pd.DataFrame:
@@ -141,8 +160,13 @@ def load_dataset(years: Iterable[int] | None = None,
         reader, so unwanted row groups are never materialised.
     columns:
         Restrict to these columns.  ``bn`` and ``year`` are always included.
+
+    A cache written before a feature was added lacks that column.  If any
+    column the current build would produce is missing from the cache, the
+    analysis frame is rebuilt from the cached panel (the raw CSVs are not
+    re-read), rather than failing inside the parquet reader.
     """
-    if not _DATASET_PATH.exists() or refresh:
+    if not _DATASET_PATH.exists() or refresh or _cache_is_stale(columns):
         build_dataset(refresh=refresh)
 
     read_columns = None

@@ -184,7 +184,7 @@ class HSRiskIndex(BaseEstimator, ClassifierMixin):
             q = self.quantile if self.directions_[ratio] < 0 else 1.0 - self.quantile
             self.cutpoints_[ratio] = float(np.quantile(values, q))
         if self.unscored_ratios_:
-            log.warning("risk index: ratios entirely missing in the training sample "
+            log.warning("HS index: ratios entirely missing in the training sample "
                         "are not scored: %s", self.unscored_ratios_)
 
         self.calibrator_ = None

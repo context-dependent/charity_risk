@@ -467,3 +467,26 @@ def test_hs_index_specifications_fit_through_the_registry():
         risk = model.risk(frame)
         assert risk.shape == (len(frame),)
         assert np.isfinite(risk).all()
+
+
+# --------------------------------------------------------------- dataset cache
+def test_load_dataset_rebuilds_a_cache_that_predates_a_feature(tmp_path, monkeypatch):
+    import charity_risk.dataset as dataset
+
+    path = tmp_path / "analysis.parquet"
+    old = pd.DataFrame({"bn": ["A"], "year": [2020], "equity_balance": [0.5]})
+    old.to_parquet(path, index=False)
+    monkeypatch.setattr(dataset, "_DATASET_PATH", path)
+
+    rebuilt = []
+    def fake_build(refresh=False, save=True):
+        rebuilt.append(True)
+        old.assign(equity_ratio=[1.0]).to_parquet(path, index=False)
+    monkeypatch.setattr(dataset, "build_dataset", fake_build)
+
+    # A column the cache already has: no rebuild.
+    dataset.load_dataset(columns=["equity_balance"])
+    assert not rebuilt
+    # A column the current build adds but the old cache lacks: rebuild, then read.
+    frame = dataset.load_dataset(columns=["equity_ratio"])
+    assert rebuilt and frame["equity_ratio"].tolist() == [1.0]
