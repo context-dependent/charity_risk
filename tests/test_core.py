@@ -469,6 +469,15 @@ def test_hs_index_specifications_fit_through_the_registry():
         assert np.isfinite(risk).all()
 
 
+def test_curve_specifications_fit_the_palette_and_include_the_hs_index():
+    from charity_risk.models import CURVE_SPECIFICATIONS
+    from charity_risk.plots import SERIES_COLORS
+
+    assert len(CURVE_SPECIFICATIONS) <= len(SERIES_COLORS)
+    assert set(CURVE_SPECIFICATIONS) <= set(SPECIFICATIONS)
+    assert "hs_index" in CURVE_SPECIFICATIONS
+
+
 # --------------------------------------------------------------- dataset cache
 def test_load_dataset_rebuilds_a_cache_that_predates_a_feature(tmp_path, monkeypatch):
     import charity_risk.dataset as dataset
