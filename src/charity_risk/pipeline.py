@@ -60,7 +60,7 @@ from .evaluate import (  # noqa: E402
     lift_table,
     permutation_importance_table,
 )
-from .models import SPECIFICATIONS  # noqa: E402
+from .models import CURVE_SPECIFICATIONS, SPECIFICATIONS  # noqa: E402
 from .outcomes import outcome_summary  # noqa: E402
 from . import plots  # noqa: E402
 
@@ -103,6 +103,10 @@ def run_task(name: str, target: str, train: pd.DataFrame, test: pd.DataFrame,
     labelled = test.loc[test[target].notna()]
     y = labelled[target].to_numpy()
     risks = {model.spec.label: model.risk(labelled) for model in fitted.values()}
+    # One colour slot per curve, so the overlaid charts draw a subset; the
+    # tables and bars above and below carry every specification.
+    curve_risks = {fitted[key].spec.label: risks[fitted[key].spec.label]
+                   for key in CURVE_SPECIFICATIONS if key in fitted}
 
     # Paired bootstrap of every model against the strongest classical benchmark.
     reference_risk = fitted[reference].risk(labelled)
@@ -126,17 +130,17 @@ def run_task(name: str, target: str, train: pd.DataFrame, test: pd.DataFrame,
 
     # --- figures ---------------------------------------------------------
     fig, ax = plt.subplots(figsize=(6.4, 5.6))
-    plots.plot_roc_curves(y, risks, ax=ax)
+    plots.plot_roc_curves(y, curve_risks, ax=ax)
     plots.save_figure(fig, f"{name}_roc")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(6.4, 5.6))
-    plots.plot_pr_curves(y, risks, ax=ax)
+    plots.plot_pr_curves(y, curve_risks, ax=ax)
     plots.save_figure(fig, f"{name}_precision_recall")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(6.8, 5.4))
-    plots.plot_gains_curves(y, risks, ax=ax)
+    plots.plot_gains_curves(y, curve_risks, ax=ax)
     plots.save_figure(fig, f"{name}_gains")
     plt.close(fig)
 

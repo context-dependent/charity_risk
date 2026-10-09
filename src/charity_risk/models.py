@@ -49,6 +49,7 @@ __all__ = [
     "ModelSpec",
     "SPECIFICATIONS",
     "SCHEDULE_6_SPECIFICATIONS",
+    "CURVE_SPECIFICATIONS",
     "build_logit_pipeline",
     "build_elasticnet_pipeline",
     "build_gbm_pipeline",
@@ -485,6 +486,23 @@ SPECIFICATIONS: dict[str, ModelSpec] = {
         citation="Bates & Granger (1969); this project",
     ),
 }
+
+#: The specifications drawn in overlaid-curve figures (ROC, precision-recall,
+#: gains), in colour-slot order.  The palette has eight fixed slots and
+#: :data:`SPECIFICATIONS` holds ten, so two are left to the tables: the deep net,
+#: which sits between the elastic-net logit and gradient boosting, and the flag
+#: form of the HS index, whose percentile form is the one meant for ranking.
+CURVE_SPECIFICATIONS: tuple[str, ...] = (
+    "size_only",
+    "tuckman_chang_1991",
+    "hs_index",
+    "greenlee_trussel_2000",
+    "trussel_2002",
+    "extended_logit",
+    "gradient_boosting",
+    "ensemble_blend",
+)
+assert set(CURVE_SPECIFICATIONS) <= set(SPECIFICATIONS)
 
 #: Specifications for the Schedule-6-only sample.  Deliberately a *separate*
 #: registry rather than an addition to :data:`SPECIFICATIONS`: the main pipeline
